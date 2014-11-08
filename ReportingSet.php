@@ -6,10 +6,15 @@ class ReportingSet {
 	var $items_filtered;
 	var $groups;
 
+	var $label;
+
 	var $aggregations = array();
 
-	function __construct( $items = array() ){
+	function __construct( $items = array(), $label = null ){
 		$this->items = $items;
+		if($label){
+			$this->label = $label;
+		}
 	}
 
 
@@ -17,24 +22,31 @@ class ReportingSet {
 
 		$groups = $this->groups ? $this->groups : array($this);
 
-		$items = $this->getItems();
+		foreach($groups as $group){
 
-		$groups = array();
+			$items = $group->getItems();
+			
+			$groups_temp = array();
 
-		foreach( $items as $i=>$item ){
+			foreach( $items as $i=>$item ){
+				$val  = $this->dotNotationExtract( $item, $group_by );
+				if(is_null($val)){
+					continue;
+				}
+				if(!isset($groups_temp[$val])){
+					$groups_temp[$val] = array();
+				}
 
-			if(!isset($groups[$item[$group_by]])){
-				$groups[$item[$group_by]] = array();
+				$groups_temp[$val][] = $item;
+				
+
 			}
-			$groups[$item[$group_by]][] = $item;
 
+			foreach($groups_temp as $i=>$group_temp){
+				$groups_temp[$i] = new ReportingSet( $group_temp );
+			}
+			$group->groups = $groups_temp;
 		}
- 		
-		foreach($groups as $i=>$group){
-			$groups[$i] = new ReportingSet( $group );
-		}
-
-		$this->groups = $groups;
 
 		return $this;
 
@@ -104,8 +116,23 @@ class ReportingSet {
 			case 'count':
 				$val = count($vals);
 			break;
+			case 'unique_count':
+				$val = count(array_unique($vale));
+			break;
 			case 'sum':
+			case 'total':
 				$val = array_sum($vals);
+			break;
+			case 'average':
+			case 'mean':
+				$val = array_sum($vals) / count($vals);
+			break;
+			case 'mode':
+				$val = array_count_values($vals);
+				asort($val);
+				$val = array_keys($val);
+				$val = end($val);
+//				$val = end( asort( array_count_values($vals) ) );
 			break;
 		}
 
@@ -115,14 +142,47 @@ class ReportingSet {
 
 	}
 
-	public function extract($field){
+	public function extract($field, $item = false){
 		
 		$vals = array();
 
 		foreach($this->getItems() as $item){
-			$vals[] = $item[$field];
+			if(! is_null($val = $this->dotNotationExtract($item, $field))){
+				$vals[] = $val;
+			}
 		}
 		return $vals;
+	}
+
+	protected function dotNotationExtract($item, $fields){
+		
+		if(is_string($fields)){
+			$fields = explode('.', $fields);
+		}
+
+		$val = $item;
+		foreach($fields as $segment){
+			if(isset($val[$segment])){
+				$val = $val[$segment];
+			} else {
+				$val = null;
+				break;
+			}
+		}
+		return $val;
+
+	}
+
+	public function getUnique($field){
+		return array_unique( $this->extract($field) );
+	}
+
+
+	public function getLabel(){
+		if($this->label)
+			return $this->label;
+
+		else return false;
 	}
 
 }
@@ -133,21 +193,39 @@ $items = array(
 	array(
 		'name' => 'Mike',
 		'sex' => 'm',
-		'age' => 31
+		'age' => 31,
+		'address' => array(
+			'city' =>'brooklyn'
+		)
 	),
 	array(
 		'name' => 'Katie',
 		'sex' => 'f',
-		'age' => 34
+		'age' => 34,
+		'address' => array(
+			'city' =>'brooklyn'
+		)
 	),
 	array(
 		'name' => 'John',
 		'sex' => 'm',
-		'age' => 32
-	)
-
+		'age' => 32,
+		'address' => array(
+			'city' =>'nyc'
+		)
+	),
 );
 
 $set = new ReportingSet($items);
 
-print_r( $set->group_by('sex')->getGroups() );
+
+
+print_r($set->extract('address.city'));
+
+
+print_r( $set->group_by('address')->getGroups() );
+//print_r($set->getUnique('age'));
+
+//print_r($set->getUnique('sex'));
+
+//echo $set->aggregate('sex', 'mode');
