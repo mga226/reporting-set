@@ -146,5 +146,27 @@ class TestReportingSet extends PHPUnit_Framework_TestCase{
 
 
 
+	function testAggregations(){
+		
+		$this->assertEquals($this->set->getCount('name'), 3);
+		$this->assertEquals($this->set->getAverage('age'), (31+34+32)/3);
+		$this->assertEquals($this->set->getSum('age'), (31+34+32));
+
+		$this->set->filter(array('sex'=>'m'));
+		$this->assertEquals($this->set->getCount('name'), 2);
+		$this->assertEquals($this->set->getAverage('age'), (31+32)/2);
+		$this->assertEquals($this->set->getSum('age'), (31+32));
+
+
+		$this->set->clearFilters();
+		$this->assertEquals($this->set->getCount('name'), 3);
+		$this->assertEquals($this->set->getAverage('age'), (31+34+32)/3);
+		$this->assertEquals($this->set->getSum('age'), (31+34+32));
+
+
+	}
+
+
+
 
 }
