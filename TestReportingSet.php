@@ -93,16 +93,58 @@ class TestReportingSet extends PHPUnit_Framework_TestCase{
 		$this->assertEquals($this->set->getItems(), $expected);
 
 	}
-/*
+
+	function testClearFilters(){
+
+		$this->set->clearFilters();
+		$this->assertEquals( $this->data, $this->set->getItems());
+
+	}
+
+
 	function testSearch(){
+
 		$this->set->search('name', 'oh');
+
 		$expected = $this->data;
 		unset($expected[0]);
 		unset($expected[1]);
-		print_r($expected);
+		
 		$this->assertEquals($this->set->getItems(), $expected);
+	
 	}
-*/
+
+	function testFlattenItems(){
+		$arr = array(
+			array(
+				'a'=>1,
+				'b'=>2,
+				'c'=>3,
+				'd'=>4
+			),
+			array(
+				'xxx' => array(
+				'a'=>1,
+				),
+				'yyy' => array(
+				'b'=>2,
+				),
+				'zzz' => array(
+				'c'=>3
+				),
+				'd' => 4
+			),
+		);
+		$expected = array(
+			$arr[0],
+			$arr[0]
+		);
+
+		$this->assertEquals(ReportingSet::flattenItems($arr), $expected);
+
+	}
+
+
 
 
 }

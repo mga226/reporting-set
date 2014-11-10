@@ -1,6 +1,8 @@
 <?php
 
 
+
+
 /**
  * Object type for reporting on large sets of data,
  * with support for filtering, searching, grouping,
@@ -32,6 +34,8 @@ class ReportingSet {
 
 		$groups = $this->groups ? $this->groups : array($this);
 
+		$group_identifiers = array();
+
 		foreach($groups as $group){
 
 			$items = $group->getItems();
@@ -44,19 +48,21 @@ class ReportingSet {
 					continue;
 				}
 
-				$val = $this->generateGroupKey($val);
+				$key = $this->generateGroupKey($val);
+				$group_identifiers[$key] = $val;
 
-				if(!isset($groups_temp[$val])){
-					$groups_temp[$val] = array();
+				
+
+				if(!isset($groups_temp[$key])){
+					$groups_temp[$key] = array();
 				}
 
-				$groups_temp[$val][] = $item;
-				
+				$groups_temp[$key][] = $item;
 
 			}
 
 			foreach($groups_temp as $i=>$group_temp){
-				$groups_temp[$i] = new ReportingSet( $group_temp );
+				$groups_temp[$i] = new ReportingSet( $group_temp, $group_identifiers[$i] );
 			}
 			$group->groups = $groups_temp;
 		}
@@ -115,13 +121,14 @@ class ReportingSet {
 
 	protected function update(){
 		
+		// clear any cached aggregation values
 		$this->aggregations = array();
 		
-		
+		// also update any groups
 		foreach($this->getGroups() as $group){
 			$group->update();
 		}
-	
+
 	}
 
 	public function clearFilters(){
@@ -132,12 +139,13 @@ class ReportingSet {
 	public function search( $key, $value ){
 		$items_filtered = $this->getItems();
 
+
 		foreach( $items_filtered as $i=>$item ){
 			
+
 				if( stripos((string) $this->dotNotationExtract($item, $key), $value) === FALSE){
-					echo $this->dotNotationExtract($item, $key)."\n";
 					unset($items_filtered[$i]);
-					break;
+					
 				}		
 		}
 
@@ -332,5 +340,44 @@ class ReportingSet {
 		$this->dotNotationSet($id, $key, $value);
 	}
 
+	static function flattenItems($arr, $num = 1){
+
+		for($i = 0; $i < $num; $i++){
+			$result = array();
+			foreach($arr as $j=>$item){
+				$item_flattened = array();
+				foreach($item as $key=>$value){
+					if(is_array($value)){
+						$item_flattened = array_merge($item_flattened, $value);
+					} else {
+						$item_flattened[$key] = $value;
+					}
+					$result[$j] = $item_flattened;
+				}
+			}
+			$arr = $result;
+		}
+		return $arr;
+	}
+
+
+
+	// aggregation helpers
+
+	public function getAverage($field){
+		return $this->aggregate('average', $field);
+	}
+
+	public function getSum($field){
+		return $this->aggregate('sum', $field);
+	}
+
+	public function getCount($field){
+		return $this->aggregate('count', $field);
+	}
+
 }
+
+
+
 
