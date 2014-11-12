@@ -1,76 +1,50 @@
 <?php
-
-
-
-
 /**
  * Object type for reporting on large sets of data,
  * with support for filtering, searching, grouping,
  * and aggregations.
  */
 class ReportingSet {
-
 	protected $items = array();
 	protected $items_filtered;
 	protected $groups;
-
 	protected  $label;
-
 	protected $aggregations = array();
 	
-
 	protected $extractionSeparator = '.'; 
-
-
 	function __construct( $items = array(), $label = null ){
 		$this->items = $items;
 		if($label){
 			$this->label = $label;
 		}
 	}
-
-
 	public function groupBy( $group_by ){
-
 		$groups = $this->groups ? $this->groups : array($this);
-
 		$group_identifiers = array();
-
 		foreach($groups as $group){
-
 			$items = $group->getItems();
 			
 			$groups_temp = array();
-
 			foreach( $items as $i=>$item ){
 				$val  = $this->dotNotationExtract( $item, $group_by );
 				if(is_null($val)){
 					continue;
 				}
-
 				$key = $this->generateGroupKey($val);
 				$group_identifiers[$key] = $val;
-
 				
-
 				if(!isset($groups_temp[$key])){
 					$groups_temp[$key] = array();
 				}
-
 				$groups_temp[$key][] = $item;
-
 			}
-
 			foreach($groups_temp as $i=>$group_temp){
 				$groups_temp[$i] = new ReportingSet( $group_temp, $group_identifiers[$i] );
 			}
 			$group->groups = $groups_temp;
 		}
-
 		return $this;
-
 	}
-
 	public function ungroup( $all = FALSE ){
 		$nested = FALSE;
 		foreach($this->getGroups() as $group){
@@ -84,41 +58,36 @@ class ReportingSet {
 		}
 		
 	}
-
 	public function ungroupAll(){
 		$this->ungroup(TRUE);
 	}
-
 	public function hasGroups(){
 		if(empty($this->groups))
 			return false;
 		else return true;
 	}
-
 	public function filter( $filters=array() ){
-
-
 		// initialize with the full data set
 		$items_filtered = $this->getItems();
+		foreach($filters as $key=>$values){
 
-		foreach($filters as $key=>$value){
+			if(empty($values))
+				continue;
+
+			if(!is_array($values) && !empty($values)){
+				$values = array($values);
+			}
+			
 			foreach( $items_filtered as $i=>$item ){
-
-				if($this->dotNotationExtract($item, $key) !== $value){
+				if(!in_array($this->dotNotationExtract($item, $key),$values)){
 					unset($items_filtered[$i]);
-					break;
 				}
 			}
 		}
-
 		$this->items_filtered = $items_filtered;
-
 		$this->update();
-
 		return $this;
-
 	}
-
 	protected function update(){
 		
 		// clear any cached aggregation values
@@ -128,32 +97,23 @@ class ReportingSet {
 		foreach($this->getGroups() as $group){
 			$group->update();
 		}
-
 	}
-
 	public function clearFilters(){
 		$this->items_filtered = null;
 		$this->update();
 	}
-
 	public function search( $key, $value ){
 		$items_filtered = $this->getItems();
-
-
 		foreach( $items_filtered as $i=>$item ){
 			
-
 				if( stripos((string) $this->dotNotationExtract($item, $key), $value) === FALSE){
 					unset($items_filtered[$i]);
 					
 				}		
 		}
-
 		$this->items_filtered = $items_filtered;
-
 		return $this;
 	}
-
 	public function getItems(){
 		if($this->items_filtered){
 			return $this->items_filtered;
@@ -161,21 +121,16 @@ class ReportingSet {
 			return $this->items;
 		}
 	}
-
 	public function getAllItems(){
 		return $this->items;
 	}
-
-
 	public function getGroups(){
 		if($this->groups){
 			return $this->groups;
 		}
 		else return array();
-
 		
 	}
-
 	public function getGroup($val){
 		
 		$val = $this->generateGroupKey($val);
@@ -186,34 +141,25 @@ class ReportingSet {
 		
 		return FALSE;
 	}
-
-
-
 	public function removeFilters(){
 		$this->items_filtered = null;
 		return $this;
 	}
-
 	public function aggregate($type, $field){
-
 		if(!isset($this->aggregations[$field])){
 			$this->aggregations[$field] = array();
 		}
-
 		if(isset($this->aggregations[$field][$type])){
 			return $this->aggregations[$field][$type];
 		}
-
 		$vals = $this->extract($field);
-
 		switch($type){
 			
 			case 'count':
 				$val = count($vals);
 			break;
-
 			case 'unique_count':
-				$val = count(array_unique($vale));
+				$val = count(array_unique($vals));
 			break;
 			
 			case 'sum':
@@ -234,17 +180,12 @@ class ReportingSet {
 				$val = end($val);
 			break;
 		}
-
 		$this->aggregations[$field][$type] = $val;
-
 		return $val;
-
 	}
-
 	public function extract($field, $item = false){
 		
 		$vals = array();
-
 		foreach($this->getItems() as $item){
 			if(! is_null($val = $this->dotNotationExtract($item, $field))){
 				$vals[] = $val;
@@ -252,13 +193,11 @@ class ReportingSet {
 		}
 		return $vals;
 	}
-
 	protected function dotNotationExtract($item, $fields){
 		
 		if(is_string($fields)){
 			$fields = explode($this->extractionSeparator, $fields);
 		}
-
 		$val = $item;
 		foreach($fields as $segment){
 			if(isset($val[$segment])){
@@ -269,10 +208,7 @@ class ReportingSet {
 			}
 		}
 		return $val;
-
 	}
-
-
 	protected function generateGroupKey($value){
 		if(is_scalar($value)){
 			return $value;
@@ -280,14 +216,11 @@ class ReportingSet {
 			return md5(serialize($value));
 		}
 	}
-
-
 	protected function dotNotationSet($id, $fields, $value){
 	
 		if(is_string($fields)){
 			$fields = explode('.', $fields);
 		}
-
 		$item = $this->items[$id];
 		$pointer =& $item;
 		foreach($fields as $field){	
@@ -301,47 +234,40 @@ class ReportingSet {
 		unset($pointer);
 		
 		$this->items[$id] = $item;
-
 		return TRUE;
-
 	}
-
 	public function getUnique($field){
 		return array_unique( $this->extract($field) );
 	}
-
-
 	public function getLabel(){
 		if($this->label)
 			return $this->label;
-
 		else return false;
 	}
-
-
 	public function stitch(ReportingSet $set, $field_name, $key_field_incoming, $key_field_receiving){
 		
 		$incoming_items = array();
-
 		foreach($set->getItems() as $item){
-			$incoming_items[ $this->dotNotationExtract($item, $key_field_incoming) ] = $item;
+
+
+
+			$key = $this->generateGroupKey($this->dotNotationExtract($item, $key_field_incoming));
+			$incoming_items[ $key ] = $item;
+
 		}
-
 		foreach($this->items as $i=>$item){
-
-			if( isset($item[$key_field_receiving]) &&
-				isset( $incoming_items[ $item[$key_field_receiving] ]) ){
-				$this->items[$i][$field_name] = $incoming_items[ $item[$key_field_receiving] ];
+			if( isset($item[$key_field_receiving]) ){
+				$key = $this->generateGroupKey( $item[$key_field_receiving] );
+				if( isset( $incoming_items[ $key ] )){
+					$this->items[$i][$field_name] = $incoming_items[ $this->generateGroupKey( $item[$key_field_receiving] ) ];
+				}
 			}
 		}
 	}
-
 	public function updateItem($id, $key, $value){
 		$this->dotNotationSet($id, $key, $value);
 	}
-
 	static function flattenItems($arr, $num = 1){
-
 		for($i = 0; $i < $num; $i++){
 			$result = array();
 			foreach($arr as $j=>$item){
@@ -359,25 +285,17 @@ class ReportingSet {
 		}
 		return $arr;
 	}
-
-
-
 	// aggregation helpers
-
 	public function getAverage($field){
 		return $this->aggregate('average', $field);
 	}
-
 	public function getSum($field){
 		return $this->aggregate('sum', $field);
 	}
-
 	public function getCount($field){
 		return $this->aggregate('count', $field);
 	}
-
+	public function getUniqueCount($field){
+		return $this->aggregate('unique_count', $field);
+	}
 }
-
-
-
-
