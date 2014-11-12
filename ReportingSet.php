@@ -19,6 +19,7 @@ class ReportingSet {
 		}
 	}
 	public function groupBy( $group_by ){
+		
 		$groups = $this->groups ? $this->groups : array($this);
 		$group_identifiers = array();
 		foreach($groups as $group){
@@ -42,7 +43,13 @@ class ReportingSet {
 				$groups_temp[$i] = new ReportingSet( $group_temp, $group_identifiers[$i] );
 			}
 			$group->groups = $groups_temp;
+			
+			$group->sortGroups();
+
+
+
 		}
+
 		return $this;
 	}
 	public function ungroup( $all = FALSE ){
@@ -131,7 +138,7 @@ class ReportingSet {
 		else return array();
 		
 	}
-	public function getGroup($val){
+	public function getGroup($val, $sort_by=FALSE){
 		
 		$val = $this->generateGroupKey($val);
 		
@@ -141,6 +148,65 @@ class ReportingSet {
 		
 		return FALSE;
 	}
+	
+	public function sortGroups($by = FALSE, $aggregation='sum', $direction='desc'){
+		$groups = $this->groups;
+		if(!$by){
+			
+			uasort($groups, array($this, 'sortGroupsCallback'));
+		} else {
+			$sorter = new ReportSetSorter($by, $aggregation, $direction);
+			uasort($groups, array($sorter, 'sort'));
+		}
+			$this->groups = $groups;
+
+	}
+
+	protected function sortGroupsCallback(ReportingSet $a, ReportingSet $b){
+		
+		return strcmp($a->getLabel(), $b->getLabel());
+
+	}
+
+	public function getGroupValues(){
+		$vals = array();
+		foreach($this->getGroups() as $group){
+			$vals[] = $group->getLabel();
+		}
+		//sort($vals);
+		return $vals;
+	}
+
+	public function setGroupValues($arr){
+		
+		// kill any nonmatching groups
+		foreach($this->getGroups() as $group){
+			if(!in_array($group->getLabel(), $arr)){
+				$this->removeGroup($group->getLabel());
+			}
+		}
+
+		// create empty groups for any that don't exist
+		foreach($arr as $val){
+			$group = $this->getGroup($val);
+			if ($group === FALSE){
+				$this->groups[ $this->generateGroupKey($val) ] = new ReportingSet(array(), $val);
+			}
+		}
+
+		$this->sortGroups();
+
+	}
+
+	protected function removeGroup($val){
+		$key = $this->generateGroupKey($val);
+		if(isset($this->groups[$key])){
+			unset($this->groups[$key]);
+		}
+	}
+
+
+
 	public function removeFilters(){
 		$this->items_filtered = null;
 		return $this;
@@ -297,5 +363,32 @@ class ReportingSet {
 	}
 	public function getUniqueCount($field){
 		return $this->aggregate('unique_count', $field);
+	}
+}
+
+
+
+
+class ReportSetSorter{
+
+	private $agg_type;
+	private $direction;
+	private $field;
+
+	function __construct($field, $agg_type = 'sum', $direction='desc'){
+		$this->field = $field;
+		$this->add_type = $agg_type;
+		$this->direction = $direction;
+	}
+
+	function sort($a, $b){
+		$s = strcmp(
+			$a->aggregate($this->agg_type, $this->field), 
+			$b->aggregate($this->agg_type, $this->field)
+		);
+		if($this->direction == 'desc'){
+			$s = $s*-1;
+		}
+		return $s;
 	}
 }

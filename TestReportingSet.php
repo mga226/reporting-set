@@ -58,6 +58,51 @@ class TestReportingSet extends PHPUnit_Framework_TestCase{
 
 	}
 
+	function testGroupBySorts(){
+
+		$this->set->groupBy('sex');
+
+
+		// correct number of groups?
+		$this->assertEquals($this->set->getGroupValues(), array('f','m'));
+
+	}
+
+
+
+	function testSetGroupValues(){
+
+		$this->set->groupBy('sex');
+		
+		$initialGroups = $this->set->getGroups();
+
+
+		$this->set->setGroupValues(array('m','x'));
+		
+		$this->assertContainsOnly('ReportingSet',$this->set->getGroups());
+
+
+		// correct number of groups?
+		$this->assertEquals($this->set->getGroupValues(), array('m','x'));
+
+	}
+
+
+	function testSortGroupsBy(){
+
+		$this->set->groupBy('sex');
+		$this->set->sortGroups('age','sum','desc');
+		$this->assertEquals($this->set->getGroupValues(), array('f','m'));
+
+		$this->set->sortGroups('age','sum','asc');
+		$this->assertEquals($this->set->getGroupValues(), array('m','f'));
+
+
+	}
+
+
+
+
 	function testUngroup(){
 
 		$this->set->groupBy('sex');
@@ -157,6 +202,33 @@ class TestReportingSet extends PHPUnit_Framework_TestCase{
 		$this->assertEquals($this->set->getAverage('age'), (31+32)/2);
 		$this->assertEquals($this->set->getSum('age'), (31+32));
 
+
+		$this->set->clearFilters();
+		$this->assertEquals($this->set->getCount('name'), 3);
+		$this->assertEquals($this->set->getAverage('age'), (31+34+32)/3);
+		$this->assertEquals($this->set->getSum('age'), (31+34+32));
+
+
+	}
+
+
+	function testAggregationsAreUnaffectedByGrouping(){
+
+		$this->set->groupBy('name');
+
+		
+		$this->assertEquals($this->set->getCount('name'), 3);
+		$this->assertEquals($this->set->getAverage('age'), (31+34+32)/3);
+		$this->assertEquals($this->set->getSum('age'), (31+34+32));
+
+		$this->set->groupBy('sex');
+
+		$this->set->filter(array('sex'=>'m'));
+		$this->assertEquals($this->set->getCount('name'), 2);
+		$this->assertEquals($this->set->getAverage('age'), (31+32)/2);
+		$this->assertEquals($this->set->getSum('age'), (31+32));
+
+		$this->set->ungroup();
 
 		$this->set->clearFilters();
 		$this->assertEquals($this->set->getCount('name'), 3);
